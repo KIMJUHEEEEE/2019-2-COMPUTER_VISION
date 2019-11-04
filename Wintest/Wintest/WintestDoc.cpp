@@ -448,99 +448,6 @@ void CWintestDoc::m_MorphologyBinaryErosion(int height, int width)
 		}
 }
 
-void CWintestDoc::m_BorderFollow(int height, int width)
-{
-	// 영역의 경계정보를 저장하기 위한 구조체 메모리 
-	typedef struct tagBORDERINFO { short* x, * y; short n, dn; } BORDERINFO;
-	BORDERINFO stBorderInfo[1000];
-
-	// 영상에 있는 픽셀이 방문된 점인지를 마크하기 위해 영상 메모리 할당 
-	unsigned char* visited = new unsigned char[height * width];
-	memset(visited, 0, height * width * sizeof(char)); // 메모리 초기화 
-
-
-	// 추적점을 임시로 저장하기 위한 메모리 
-	short* xchain = new short[10000];
-	short* ychain = new short[10000];
-
-	// 관심 픽셀의 시계방향으로 주위점을 나타내기 위한 좌표 설정 
-	const POINT nei[8] =           // clockwise neighbors
-	{
-		{1,0}, {1,-1}, {0,-1}, {-1,-1}, {-1,0}, {-1,1}, {0,1}, {1,1}
-	};
-	int c0, c1, x0, y0, k, n;	int a = 0;
-	int border_count, diagonal_count, numberBorder = 0;
-	for (int x = 1; x < height; x++)
-	{
-		for (int y = 1; y < width; y++)
-		{
-			c0 = m_OutImg[x][y];
-			c1 = m_OutImg[x - 1][y];
-
-			if (c0 != c1 && c0 == (unsigned char)255 && visited[x * width + y] == 0)
-				//c0!=c1(경계이고)
-			{
-
-				border_count = 0;  // 경계점의 갯수를 세기 위한 카운터
-				diagonal_count = 0;  // 
-
-				x0 = x;
-				y0 = y;
-				n = 4;
-				do
-				{
-					// 관심점 주위에서 같은 칼라를 가진 경계점을 찾기 위함 
-					for (k = 0; k < 8; k++, n = ((n + 1) & 7))  // 01234567
-					{									                              // 12345670
-						short  u = (short)(x + nei[n].x);
-						short  v = (short)(y + nei[n].y);
-						if (u < 0 || u >= height || v < 0 || v >= width) continue;
-						if (m_OutImg[u][v] == c0) break; // 관심점의 주위를 돌다가 같은 밝기의     
-												 // 경계를 만나면 다음으로 추적할 점이 됨 
-					}
-					if (k == 8) break;    // isolated point occurs
-
-					visited[x * width + y] = 255;  // 방문한 점으로 마크 
-					xchain[border_count] = x;
-					ychain[border_count++] = y;
-
-					if (border_count >= 10000) break;
-
-					x = x + nei[n].x;
-					y = y + nei[n].y;
-
-					if (n % 2 == 1) diagonal_count++;  // 01234567 
-					n = (n + 5) & 7;                    // 56701234
-				} while (!(x == x0 && y == y0));
-
-				if (k == 8) continue;    // isolated point occurs
-
-					  // 경계정보를 저장 
-				if (border_count < 10) continue; // 너무작은 영역의 경계이면 무시한다.  
-
-				stBorderInfo[numberBorder].x = new short[border_count];
-				stBorderInfo[numberBorder].y = new short[border_count];
-
-				for (k = 0; k < border_count; k++)
-				{
-					stBorderInfo[numberBorder].x[k] = xchain[k];
-					stBorderInfo[numberBorder].y[k] = ychain[k];
-				}
-				int n = 0;
-				stBorderInfo[numberBorder].n = border_count;
-				n = border_count;
-				if (n != 0&&n>1000)
-				{
-					len[a++] = n;
-				}
-				stBorderInfo[numberBorder++].dn = diagonal_count;
-
-			}
-
-		}
-	}
-}
-
 void CWintestDoc::OnHoughCircle()
 {
 	// TODO: Add your command handler code here
@@ -593,7 +500,7 @@ void CWintestDoc::HT_Circle(unsigned char* orgImg, unsigned char* outImg, int he
 		LUT_SIN[i] = (float)sin(i * p2d);
 	}
 
-	for (i = 0; i < height * width; i++) outImg[i] = 255;
+	for (i = 0; i < height * width; i++) outImg[i] =255;
 
 
 	// For vote
@@ -608,8 +515,8 @@ void CWintestDoc::HT_Circle(unsigned char* orgImg, unsigned char* outImg, int he
 				{
 					for (ang = 0; ang < 360; ang++)
 					{
-						rr = (int)(i - k * LUT_COS[ang]);
-						cc = (int)(j - k * LUT_SIN[ang]);
+						rr = (int)(i + k * LUT_COS[ang]);
+						cc = (int)(j + k * LUT_SIN[ang]);
 
 						if (rr < height && rr>0 && cc < width && cc>0) H[rr][cc][k]++;
 					}
@@ -627,88 +534,196 @@ void CWintestDoc::HT_Circle(unsigned char* orgImg, unsigned char* outImg, int he
 			{
 				if (H[i][j][k] > thres)
 				{
-					int a = k;
-					if (a>=47&&a<=51)
+					int a = k; 
+					if (a>=47&&a<=51)//10원
 					{
 						while (a >= 0)
 						{
+							int want = 0;
 							for (ang = 0; ang < 360; ang++)
 							{
 								rr = (int)(i + a * LUT_COS[ang]);
 								cc = (int)(j + a * LUT_SIN[ang]);
 								if (rr > 0 && rr < height && cc>0 && cc < width)
 								{
-									outImg[rr * width + cc] = 0;
+									if(outImg[rr*width+cc]==255)
+										outImg[rr * width + cc] = 0;
+									else
+									{
+										if (m_edge[rr][cc] == 255&&a>44&&a<47)
+										{
+											want = 1;
+											break;
+										}
+									}
 								}
 
+							}
+							if (want == 1)
+							{
+								for (ang = 0; ang < 360; ang++)
+								{
+									rr = (int)(i + a * LUT_COS[ang]);
+									cc = (int)(j + a * LUT_SIN[ang]);
+									if (rr > 0 && rr < height && cc>0 && cc < width)
+									{
+										outImg[rr * width + cc] = 0;
+									}
+								}
 							}
 							a--;
 						}
 					}
-					else if (a >= 61 && a <= 68)
-					{
+					else if (a >=61  && a <= 66)//100원
+					{						
 						while (a >= 0)
-						{
+						{int want = 0;
 							for (ang = 0; ang < 360; ang++)
 							{
 								rr = (int)(i + a * LUT_COS[ang]);
 								cc = (int)(j + a * LUT_SIN[ang]);
 								if (rr > 0 && rr < height && cc>0 && cc < width)
 								{
-									outImg[rr * width + cc] = 60;
+									if(outImg[rr*width+cc]==255)
+										outImg[rr * width + cc] = 60;
+									else
+									{
+										if (m_edge[rr][cc] == 255&&a<61&&a>57)
+										{
+											want = 1;
+											break;
+										}
+									}
 								}
-
+							}
+							if (want == 1)
+							{
+								for (ang = 0; ang < 360; ang++)
+								{
+									rr = (int)(i + a * LUT_COS[ang]);
+									cc = (int)(j + a * LUT_SIN[ang]);
+									if (rr > 0 && rr < height && cc>0 && cc < width)
+									{
+											outImg[rr * width + cc] = 60;
+									}
+								}
 							}
 							a--;
 						}
 					}
-					else if(a > 70 && a < 75)
+					else if(a > 70 && a < 75)//500원
 					{
 						while (a >= 0)
 						{
+							int want = 0;
 							for (ang = 0; ang < 360; ang++)
 							{
 								rr = (int)(i + a * LUT_COS[ang]);
 								cc = (int)(j + a * LUT_SIN[ang]);
 								if (rr > 0 && rr < height && cc>0 && cc < width)
 								{
-									outImg[rr * width + cc] =120;
+									if(outImg[rr*width+cc]==255||outImg[rr*width+cc]==120)
+										outImg[rr * width + cc] =120;
+									else
+									{
+										if (m_edge[rr][cc] == 255&&a>65&&a<67)
+										{
+											want = 1;
+											break;
+										}
+									}
 								}
 
+							}
+							if (want == 1)
+							{
+								for (ang = 0; ang < 360; ang++)
+								{
+									rr = (int)(i + a * LUT_COS[ang]);
+									cc = (int)(j + a * LUT_SIN[ang]);
+									if (rr > 0 && rr < height && cc>0 && cc < width)
+									{
+										outImg[rr * width + cc] = 120;
+									}
+								}
 							}
 							a--;
 						}
 					}
-					else if (a>=52&&a<=56)
+					else if (a>=53&&a<=56)//작은도넛
 					{
 						while (a >= 18)
 						{
+							int want = 0;
 							for (ang = 0; ang < 360; ang++)
 							{
 								rr = (int)(i + a * LUT_COS[ang]);
 								cc = (int)(j + a * LUT_SIN[ang]);
 								if (rr > 0 && rr < height && cc>0 && cc < width)
 								{
-									outImg[rr * width + cc] = 180;
+									if(outImg[rr*width+cc]==255)
+										outImg[rr * width + cc] = 180;
+									else
+									{
+										if (m_edge[rr][cc] == 255&&a<53&&a>49)
+										{
+											want = 1;
+											break;
+										}
+									}
 								}
 
+							}
+							if (want == 1)
+							{
+								for (ang = 0; ang < 360; ang++)
+								{
+									rr = (int)(i + a * LUT_COS[ang]);
+									cc = (int)(j + a * LUT_SIN[ang]);
+									if (rr > 0 && rr < height && cc>0 && cc < width)
+									{
+										outImg[rr * width + cc] = 180;
+									}
+								}
 							}
 							a--;
 						}
 					}
-					else if (a>=80&&a<=86)
+					else if (a>=80&&a<=86)//큰도넛
 					{
 						while (a >= 22)
 						{
+							int want = 0;
 							for (ang = 0; ang < 360; ang++)
 							{
 								rr = (int)(i + a * LUT_COS[ang]);
 								cc = (int)(j + a * LUT_SIN[ang]);
 								if (rr > 0 && rr < height && cc>0 && cc < width)
 								{
-									outImg[rr * width + cc] = 240;
+									if(outImg[rr*width+cc]==255)
+										outImg[rr * width + cc] = 240;
+									else
+									{
+										if (m_edge[rr][cc] == 255&&a<80&&a>76)
+										{
+											want = 1;
+											break;
+										}
+									}
 								}
 
+							}
+							if (want == 1)
+							{
+								for (ang = 0; ang < 360; ang++)
+								{
+									rr = (int)(i + a * LUT_COS[ang]);
+									cc = (int)(j + a * LUT_SIN[ang]);
+									if (rr > 0 && rr < height && cc>0 && cc < width)
+									{
+										outImg[rr * width + cc] = 240;
+									}
+								}
 							}
 							a--;
 						}
@@ -818,6 +833,7 @@ void CWintestDoc::m_EdgeSobel(int height, int width)
 			newValue = pImgSobelX[i * width + j];
 			newValue = constVal1 * newValue + constVal2;
 			m_OutImg[i][j] = (BYTE)newValue;
+			m_edge[i][j] = (BYTE)newValue;
 		}
 	}
 
